@@ -21,6 +21,7 @@ dependencies:
     path: ../syncfusion_flutter_pdf
 
   collection: ">=1.9.0 <=2.0.0"
+  web: ^0.5.0
 
 dev_dependencies:
   flutter_test:

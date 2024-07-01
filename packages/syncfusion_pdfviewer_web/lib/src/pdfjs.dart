@@ -1,7 +1,7 @@
 @JS()
 library pdf.js;
 
-import 'dart:html';
+import 'package:web/web.dart';
 import 'dart:typed_data';
 
 import 'package:js/js.dart';
