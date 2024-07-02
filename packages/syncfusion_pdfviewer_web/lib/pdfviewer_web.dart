@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:js' as js;
 import 'dart:js_interop';
-import 'dart:js_util';
 import 'dart:typed_data';
 
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
@@ -10,7 +8,7 @@ import 'package:syncfusion_pdfviewer_web/src/pdfjs.dart';
 import 'package:web/web.dart' as web;
 
 class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
-  final Settings _settings = Settings()..scale = 1.0;
+  final Settings _settings = Settings(scale: 1.0);
   Map<String, PdfJsDoc?> _documentRepo = Map<String, PdfJsDoc?>();
 
   /// Registers this class as the default instance of [PdfViewerPlatform].
@@ -22,10 +20,10 @@ class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
   @override
   Future<String> initializePdfRenderer(
       Uint8List documentBytes, String documentID) async {
-    Settings documentData = Settings()..data = documentBytes;
+    Settings documentData = Settings(data: documentBytes);
     final documentLoader = PdfJs.getDocument(documentData);
     final PdfJsDoc pdfJsDoc =
-        await promiseToFuture<PdfJsDoc>(documentLoader.promise);
+        await JSPromiseToFuture<PdfJsDoc>(documentLoader.promise).toDart;
     final int pagesCount = pdfJsDoc.numPages;
     _documentRepo[documentID] = pdfJsDoc;
     return pagesCount.toString();
@@ -37,8 +35,9 @@ class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
     int pageCount = _documentRepo[documentID]?.numPages ?? 0;
     Int32List pagesHeight = new Int32List(pageCount);
     for (int pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
-      PdfJsPage page = await promiseToFuture<PdfJsPage>(
-          _documentRepo[documentID]!.getPage(pageNumber));
+      PdfJsPage page = await JSPromiseToFuture<PdfJsPage>(
+              _documentRepo[documentID]!.getPage(pageNumber))
+          .toDart;
       PdfJsViewport viewport = page.getViewport(_settings);
       pagesHeight[pageNumber - 1] = viewport.height.toInt();
     }
@@ -51,8 +50,9 @@ class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
     int pageCount = _documentRepo[documentID]?.numPages ?? 0;
     Int32List pagesWidth = new Int32List(pageCount);
     for (int pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
-      PdfJsPage page = await promiseToFuture<PdfJsPage>(
-          _documentRepo[documentID]!.getPage(pageNumber));
+      PdfJsPage page = await JSPromiseToFuture<PdfJsPage>(
+              _documentRepo[documentID]!.getPage(pageNumber))
+          .toDart;
       PdfJsViewport viewport = page.getViewport(_settings);
       pagesWidth[pageNumber - 1] = viewport.width.toInt();
     }
@@ -64,8 +64,9 @@ class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
   Future<Uint8List> getPage(
       int pageNumber, int fullWidth, int fullHeight, String documentID) async {
     if (_documentRepo[documentID] != null) {
-      PdfJsPage page = await promiseToFuture<PdfJsPage>(
-          _documentRepo[documentID]!.getPage(pageNumber));
+      PdfJsPage page = await JSPromiseToFuture<PdfJsPage>(
+              _documentRepo[documentID]!.getPage(pageNumber))
+          .toDart;
       PdfJsViewport viewport = page.getViewport(_settings);
       return renderPage(page, viewport, fullWidth, fullHeight, documentID);
     }
@@ -76,8 +77,9 @@ class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
   Future<Uint8List?> getTileImage(int pageNumber, double scale, double x,
       double y, double width, double height, String documentID) async {
     if (_documentRepo[documentID] != null) {
-      PdfJsPage page = await promiseToFuture<PdfJsPage>(
-          _documentRepo[documentID]!.getPage(pageNumber));
+      PdfJsPage page = await JSPromiseToFuture<PdfJsPage>(
+              _documentRepo[documentID]!.getPage(pageNumber))
+          .toDart;
       PdfJsViewport viewport = page.getViewport(_settings);
       return _renderPageTile(page, viewport, scale, x, y, width, height);
     }
@@ -94,22 +96,20 @@ class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
     double height,
   ) async {
     final web.HTMLCanvasElement htmlCanvas =
-        js.context['document'].createElement('canvas');
+        web.document.createElement('canvas') as web.HTMLCanvasElement;
     final Object? context = htmlCanvas.getContext('2d');
 
-    viewport = page.getViewport(Settings()
-      ..offsetX = -(x * scale)
-      ..offsetY = -(y * scale)
-      ..scale = scale);
+    viewport = page.getViewport(
+        Settings(offsetX: -(x * scale), offsetY: -(y * scale), scale: scale));
 
     htmlCanvas
       ..height = height.toInt()
       ..width = width.toInt();
-    final renderSettings = Settings()
-      ..canvasContext = (context as web.CanvasRenderingContext2D)
-      ..viewport = viewport
-      ..annotationMode = 0;
-    await promiseToFuture<void>(page.render(renderSettings).promise);
+    final renderSettings = Settings(
+        canvasContext: (context as web.CanvasRenderingContext2D),
+        viewport: viewport,
+        annotationMode: 0);
+    await JSPromiseToFuture<JSAny?>(page.render(renderSettings).promise).toDart;
 
     return htmlCanvas.context2D
         .getImageData(0, 0, width.toInt(), height.toInt())
@@ -130,25 +130,24 @@ class SyncfusionFlutterPdfViewerPlugin extends PdfViewerPlatform {
   Future<Uint8List> renderPage(PdfJsPage page, PdfJsViewport viewport,
       int fullWidth, int fullHeight, String documentID) async {
     final web.HTMLCanvasElement htmlCanvas =
-        js.context['document'].createElement('canvas');
+        web.document.createElement('canvas') as web.HTMLCanvasElement;
     final Object? context = htmlCanvas.getContext('2d');
     final _viewport = page.getViewport(_settings);
-    viewport =
-        page.getViewport(Settings()..scale = (fullWidth / _viewport.width));
+    viewport = page.getViewport(Settings(scale: (fullWidth / _viewport.width)));
 
     htmlCanvas
       ..width = fullWidth
       ..height = fullHeight;
-    final renderSettings = Settings()
-      ..canvasContext = (context as web.CanvasRenderingContext2D)
-      ..viewport = viewport
-      ..annotationMode = 0;
-    await promiseToFuture<void>(page.render(renderSettings).promise);
+    final renderSettings = Settings(
+        canvasContext: (context as web.CanvasRenderingContext2D),
+        viewport: viewport,
+        annotationMode: 0);
+    await JSPromiseToFuture<JSAny?>(page.render(renderSettings).promise).toDart;
 
     return htmlCanvas.context2D
         .getImageData(0, 0, fullWidth, fullHeight)
         .data
-  .toDart
+        .toDart
         .buffer
         .asUint8List();
   }
